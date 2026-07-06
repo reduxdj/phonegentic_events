@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Current schema version string carried in every server event envelope.
+pub mod persona;
+
 pub const SCHEMA_VERSION: &str = "1.0";
 
 /// Who produced a transcript segment.

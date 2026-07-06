@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://phonegentic.ai/schemas/persona/1.0.0/persona.schema.json",
+  "title": "Persona",
+  "description": "Canonical cross-runtime persona (Kickoff 5A). FROZEN wire format v1.0.0 — additive-only changes; any breaking change bumps the version directory. Mirrors phonegentic_events::persona::Persona.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["role", "job_function"],
+  "properties": {
+    "name": {
+      "type": ["string", "null"],
+      "description": "Agent's name for self-introduction. null/absent = unnamed."
+    },
+    "role": {
+      "type": "string",
+      "description": "Base role sentence, e.g. \"You are a voice AI agent…\"."
+    },
+    "job_function": {
+      "type": "string",
+      "description": "The job description (Dart AgentBootContext.jobFunction, a string)."
+    },
+    "speakers": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "source"],
+        "properties": {
+          "role": { "type": "string" },
+          "source": { "type": "string", "enum": ["mic", "remote", "pstn"] },
+          "name": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "guardrails": {
+      "type": "array",
+      "default": [],
+      "items": { "type": "string" }
+    },
+    "text_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "Text-only (whisper) mode. Always false on the voice-only server runtime."
+    },
+    "default_country_code": {
+      "type": "string",
+      "default": "1",
+      "description": "Host locale for phone-number normalization."
+    },
+    "voice": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["engine"],
+      "properties": {
+        "engine": { "type": "string", "enum": ["piper", "pocket_tts", "elevenlabs"] },
+        "voice_id": { "type": ["string", "null"] }
+      },
+      "description": "TTS voice. NOTE: voice_id namespaces differ per engine (not portable across runtimes). Present but not yet wired to real TTS (5A is schema-only)."
+    },
+    "tools_enabled": {
+      "type": "array",
+      "default": [],
+      "items": { "type": "string" },
+      "description": "Names of tools this persona allows. Empty until Kickoff 5B."
+    },
+    "opening_line": {
+      "type": ["string", "null"],
+      "description": "Server runtime: spoken on answer before the first user utterance."
+    },
+    "temperature": {
+      "type": ["number", "null"],
+      "description": "Server runtime: LLM sampling temperature. null = provider default."
+    }
+  }
+}
