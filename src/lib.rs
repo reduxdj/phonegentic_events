@@ -125,6 +125,54 @@ pub enum ClientCommand {
     VoiceUpdate { voice_id: String, request_id: String },
     #[serde(rename = "call.interrupt")]
     CallInterrupt { call_id: String, request_id: String },
+
+    // --- Context sync (Kickoff 6A) -----------------------------------------
+    // The client pushes its contacts + call summaries so the SERVER agent can
+    // greet callers by name / recall past calls. Keyed by e164. `source_ts` is
+    // the client's last-edit time (unix secs) — the server does source_ts-guarded
+    // last-write-wins (a stale/replayed frame never clobbers a newer edit).
+    /// Upsert a contact snapshot (create or update by e164).
+    #[serde(rename = "context.contact.upsert")]
+    ContextContactUpsert {
+        e164: String,
+        display_name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        notes: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tags: Option<Vec<String>>,
+        source_ts: i64,
+        request_id: String,
+    },
+    /// Delete a contact snapshot by e164. (Associated call summaries are kept —
+    /// they're e164-keyed and the call happened regardless.)
+    #[serde(rename = "context.contact.delete")]
+    ContextContactDelete {
+        e164: String,
+        source_ts: i64,
+        request_id: String,
+    },
+    /// Upsert a call-summary snapshot (idempotent by client-supplied call_id).
+    #[serde(rename = "context.call_summary.upsert")]
+    ContextCallSummaryUpsert {
+        call_id: String,
+        e164: String,
+        summary_text: String,
+        started_at: i64,
+        duration_seconds: i64,
+        /// "client" | "server" — who handled the call.
+        handled_by: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        topics: Option<Vec<String>>,
+        request_id: String,
+    },
+    /// Nuclear: delete ALL context rows (contacts + summaries) for the tenant.
+    /// `require_confirm` MUST be true or the server rejects it (safety).
+    #[serde(rename = "context.purge_all")]
+    ContextPurgeAll {
+        require_confirm: bool,
+        request_id: String,
+    },
+
     Ping,
 }
 
@@ -200,6 +248,79 @@ mod tests {
         assert_eq!(serde_json::to_value(&c).unwrap(),
                    json!({ "type": "persona.update", "persona": {"display_name":"X"}, "request_id": "r2" }));
         assert_eq!(serde_json::to_value(ClientCommand::Ping).unwrap(), json!({ "type": "ping" }));
+    }
+
+    #[test]
+    fn context_commands_wire_shape() {
+        // contact.upsert — optional notes/tags omitted when None.
+        let c = ClientCommand::ContextContactUpsert {
+            e164: "+14155551234".into(),
+            display_name: "Sarah Chen".into(),
+            notes: None,
+            tags: None,
+            source_ts: 1_783_000_000,
+            request_id: "r1".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(&c).unwrap(),
+            json!({
+                "type": "context.contact.upsert",
+                "e164": "+14155551234",
+                "display_name": "Sarah Chen",
+                "source_ts": 1_783_000_000,
+                "request_id": "r1"
+            })
+        );
+        assert_eq!(serde_json::from_value::<ClientCommand>(serde_json::to_value(&c).unwrap()).unwrap(), c);
+
+        // contact.upsert — with notes + tags present.
+        let c2 = ClientCommand::ContextContactUpsert {
+            e164: "+1".into(),
+            display_name: "N".into(),
+            notes: Some("VIP".into()),
+            tags: Some(vec!["lead".into(), "vip".into()]),
+            source_ts: 1,
+            request_id: "r".into(),
+        };
+        let v2 = serde_json::to_value(&c2).unwrap();
+        assert_eq!(v2["notes"], json!("VIP"));
+        assert_eq!(v2["tags"], json!(["lead", "vip"]));
+
+        assert_eq!(
+            serde_json::to_value(ClientCommand::ContextContactDelete {
+                e164: "+14155551234".into(),
+                source_ts: 42,
+                request_id: "r2".into(),
+            })
+            .unwrap(),
+            json!({ "type": "context.contact.delete", "e164": "+14155551234", "source_ts": 42, "request_id": "r2" })
+        );
+
+        let cs = ClientCommand::ContextCallSummaryUpsert {
+            call_id: "01CALL".into(),
+            e164: "+14155551234".into(),
+            summary_text: "Discussed pricing.".into(),
+            started_at: 1_783_000_100,
+            duration_seconds: 320,
+            handled_by: "server".into(),
+            topics: Some(vec!["pricing".into()]),
+            request_id: "r3".into(),
+        };
+        let vcs = serde_json::to_value(&cs).unwrap();
+        assert_eq!(vcs["type"], "context.call_summary.upsert");
+        assert_eq!(vcs["call_id"], "01CALL");
+        assert_eq!(vcs["handled_by"], "server");
+        assert_eq!(vcs["topics"], json!(["pricing"]));
+        assert_eq!(serde_json::from_value::<ClientCommand>(vcs).unwrap(), cs);
+
+        assert_eq!(
+            serde_json::to_value(ClientCommand::ContextPurgeAll {
+                require_confirm: true,
+                request_id: "r4".into(),
+            })
+            .unwrap(),
+            json!({ "type": "context.purge_all", "require_confirm": true, "request_id": "r4" })
+        );
     }
 
     #[test]
