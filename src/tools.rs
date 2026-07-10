@@ -43,7 +43,7 @@ pub fn agent_tools() -> Vec<ToolDef> {
         },
         ToolDef {
             name: "merge_conference",
-            description: "Bridge all active call legs into one conference (requires at least two legs).",
+            description: "Bridge all active call legs into one conference (requires at least two legs). After this you are a CONNECTOR, not a participant — you can no longer hear or be heard, so announce the handoff and stop; do not promise to stay or ask questions afterward.",
             input_schema: obj(json!({}), &[]),
         },
         ToolDef {
@@ -114,7 +114,7 @@ pub fn agent_tools() -> Vec<ToolDef> {
         // --- Call control ---
         ToolDef {
             name: "transfer_call",
-            description: "Blind-transfer the active call to another number or SIP URI, then disconnect our side.",
+            description: "Blind-transfer the active call to another number or SIP URI, then disconnect our side. The call leaves you entirely — announce it and stop; you cannot listen or speak afterward.",
             input_schema: obj(json!({ "target": { "type": "string", "description": "E.164 number or SIP URI" } }), &["target"]),
         },
         ToolDef {

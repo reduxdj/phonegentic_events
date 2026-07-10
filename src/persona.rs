@@ -180,19 +180,7 @@ pub fn render_system_prompt(p: &Persona) -> String {
     b.push_str("9. After the call ends, produce NO output — no summary, no goodbye. Complete silence.\n");
 
     // --- Tool behavior (only when the persona enables the relevant tools) ---
-    let has = |name: &str| p.tools_enabled.iter().any(|t| t == name);
-    if has("add_conference_participant") || has("merge_conference") {
-        b.push_str("\n## Conferencing\n");
-        b.push_str("Only conference someone in on a CLEAR, explicit request from the host. If the REMOTE party asks to add someone, do NOT do it directly — call request_manager_conference with the reason and wait for the manager's approval. To conference: hold_call, add_conference_participant, then merge_conference.\n");
-    }
-    if has("send_sms") || has("reply_sms") {
-        b.push_str("\n## Messaging\n");
-        b.push_str("Your FIRST text to a new recipient must identify you by name and include \"Phonegentic\" and https://phonegentic.ai. When someone on the call says \"text me\", use their own number. Keep texts short.\n");
-    }
-    if has("create_calendar_event") {
-        b.push_str("\n## Scheduling\n");
-        b.push_str("Confirm the date and time back to the caller before creating an event. Use read_calendar to check availability when asked.\n");
-    }
+    b.push_str(&tool_guidance(&p.tools_enabled));
 
     // --- Output mode ---
     if p.text_only {
@@ -214,6 +202,38 @@ pub fn render_system_prompt(p: &Persona) -> String {
     ));
 
     b.trim_end().to_string()
+}
+
+/// Tool-specific behavioral rules appended to the system prompt when a persona
+/// enables the relevant tools. Split out from [`render_system_prompt`] so callers
+/// that use a stored/custom `system_prompt` (the server agent does) can still
+/// append these — otherwise tool guidance would only reach personas that fall
+/// back to the rendered prompt. Returns "" when no relevant tools are enabled.
+pub fn tool_guidance(tools_enabled: &[String]) -> String {
+    let has = |name: &str| tools_enabled.iter().any(|t| t == name);
+    let mut b = String::new();
+    if has("add_conference_participant") || has("merge_conference") {
+        b.push_str("\n## Conferencing\n");
+        b.push_str("Only conference someone in on a CLEAR, explicit request from the host. If the REMOTE party asks to add someone, do NOT do it yourself — call request_manager_conference with the reason and wait for approval. To connect a third party, call add_conference_participant with their number.\n");
+        b.push_str("IMPORTANT — you are a CONNECTOR, not a participant. Once the people are bridged you can NO LONGER hear them or be heard by them. The instant the connection is made:\n");
+        b.push_str("- Announce the handoff and then stop, e.g. \"I'm connecting you two now. Have a good conversation.\"\n");
+        b.push_str("- Do NOT promise to stay. Never say \"I'll stay on the line,\" \"let me know if you need anything,\" or \"I'm still here\" — you will not be audible.\n");
+        b.push_str("- Do NOT ask any question after connecting — no one will hear the answer.\n");
+        b.push_str("- The only way to reach you again is to hang up and call back; you may say that once as part of the handoff (\"If you need me again, hang up and call back\").\n");
+    }
+    if has("transfer_call") {
+        b.push_str("\n## Transferring\n");
+        b.push_str("A transfer sends the call away from you entirely — you cannot listen or speak afterward. Announce it and stop: \"Transferring you now — one moment.\" Do not promise to stay on or ask a follow-up question after transferring.\n");
+    }
+    if has("send_sms") || has("reply_sms") {
+        b.push_str("\n## Messaging\n");
+        b.push_str("Your FIRST text to a new recipient must identify you by name and include \"Phonegentic\" and https://phonegentic.ai. When someone on the call says \"text me\", use their own number. Keep texts short.\n");
+    }
+    if has("create_calendar_event") {
+        b.push_str("\n## Scheduling\n");
+        b.push_str("Confirm the date and time back to the caller before creating an event. Use read_calendar to check availability when asked.\n");
+    }
+    b
 }
 
 fn source_word(s: &SpeakerSource) -> &'static str {
@@ -260,6 +280,19 @@ mod tests {
             checked += 1;
         }
         assert!(checked >= 6, "expected >= 6 vectors, checked {checked}");
+    }
+
+    #[test]
+    fn conference_guidance_is_broker_only() {
+        let g = tool_guidance(&["add_conference_participant".to_string()]);
+        assert!(g.contains("CONNECTOR, not a participant"));
+        assert!(g.contains("I'm connecting you two now"));
+        assert!(g.contains("hang up and call back"));
+        // must NOT teach the model to promise it stays
+        assert!(!g.contains("I'll stay with you"));
+        // empty when no relevant tools
+        assert!(tool_guidance(&[]).is_empty());
+        assert!(tool_guidance(&["end_call".to_string()]).is_empty());
     }
 
     #[test]
