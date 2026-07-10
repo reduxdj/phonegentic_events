@@ -179,6 +179,21 @@ pub fn render_system_prompt(p: &Persona) -> String {
     b.push_str("8. NEVER fabricate, simulate, or role-play the other party's speech. Wait for their actual words; if silence, stay silent.\n");
     b.push_str("9. After the call ends, produce NO output — no summary, no goodbye. Complete silence.\n");
 
+    // --- Tool behavior (only when the persona enables the relevant tools) ---
+    let has = |name: &str| p.tools_enabled.iter().any(|t| t == name);
+    if has("add_conference_participant") || has("merge_conference") {
+        b.push_str("\n## Conferencing\n");
+        b.push_str("Only conference someone in on a CLEAR, explicit request from the host. If the REMOTE party asks to add someone, do NOT do it directly — call request_manager_conference with the reason and wait for the manager's approval. To conference: hold_call, add_conference_participant, then merge_conference.\n");
+    }
+    if has("send_sms") || has("reply_sms") {
+        b.push_str("\n## Messaging\n");
+        b.push_str("Your FIRST text to a new recipient must identify you by name and include \"Phonegentic\" and https://phonegentic.ai. When someone on the call says \"text me\", use their own number. Keep texts short.\n");
+    }
+    if has("create_calendar_event") {
+        b.push_str("\n## Scheduling\n");
+        b.push_str("Confirm the date and time back to the caller before creating an event. Use read_calendar to check availability when asked.\n");
+    }
+
     // --- Output mode ---
     if p.text_only {
         b.push_str("\n## Output Mode — Text\n");

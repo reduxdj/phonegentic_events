@@ -16,7 +16,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Current schema version string carried in every server event envelope.
+pub mod calendar;
+pub mod messaging;
 pub mod persona;
+pub mod tools;
 
 pub const SCHEMA_VERSION: &str = "1.0";
 
