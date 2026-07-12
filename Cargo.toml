@@ -1,6 +1,6 @@
 [package]
 name = "phonegentic-events"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 description = "Shared wire schema for Phonegentic real-time sync (Kickoff 4). Consumed by the orchestrator (WSS) and the agent (NATS publisher) as a git dependency; the Dart app mirrors it, kept honest by the shared JSON vectors in tests."
 license = "MIT"

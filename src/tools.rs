@@ -111,6 +111,12 @@ pub fn agent_tools() -> Vec<ToolDef> {
             description: "Read calendar events for a given date (to check availability).",
             input_schema: obj(json!({ "date": { "type": "string", "description": "YYYY-MM-DD" } }), &["date"]),
         },
+        // --- Contacts ---
+        ToolDef {
+            name: "lookup_contact",
+            description: "Look up the manager's saved contacts by name (partial match ok) to get a phone number. Use this before calling, texting, or conferencing someone the caller/manager refers to by name rather than number.",
+            input_schema: obj(json!({ "query": { "type": "string", "description": "Name or partial name to search for" } }), &["query"]),
+        },
         // --- Call control ---
         ToolDef {
             name: "transfer_call",
@@ -151,12 +157,12 @@ mod tests {
     #[test]
     fn tool_set_shape() {
         let all = agent_tools();
-        assert_eq!(all.len(), 16);
+        assert_eq!(all.len(), 17);
         // names unique
         let mut names: Vec<&str> = all.iter().map(|t| t.name).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 16);
+        assert_eq!(names.len(), 17);
         // anthropic shape
         let sms = all.iter().find(|t| t.name == "send_sms").unwrap();
         let v = sms.to_anthropic();
