@@ -94,6 +94,19 @@ pub enum ServerEvent {
     CallEnded { call_id: String, reason: Option<String>, duration_secs: Option<u64> },
     #[serde(rename = "agent.state")]
     AgentState { call_id: Option<String>, state: AgentStateKind },
+    /// A call recording is staged in Spaces and ready for the Mac app to pull
+    /// (offline-call-recordings). `call_id` is the archive id when known.
+    #[serde(rename = "recording.ready")]
+    RecordingReady {
+        id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        call_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        duration_s: Option<i64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bytes: Option<i64>,
+        created_at: i64,
+    },
     #[serde(rename = "persona.updated")]
     PersonaUpdated { display_name: String, category: String, opening_line: String, voice_id: Option<String> },
     #[serde(rename = "voice.updated")]
