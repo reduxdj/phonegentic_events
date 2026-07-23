@@ -233,6 +233,10 @@ pub fn tool_guidance(tools_enabled: &[String]) -> String {
         b.push_str("\n## Scheduling\n");
         b.push_str("Confirm the date and time back to the caller before creating an event. Use read_calendar to check availability when asked.\n");
     }
+    if has("call_me") {
+        b.push_str("\n## Calling the owner back\n");
+        b.push_str("call_me rings the account OWNER's own phone and connects them to you — use it only when the owner asks you to call them (e.g. they text \"call me\"). It dials only the owner's verified number, never anyone else, so never offer it to an outside caller. After calling it, tell them you're calling now.\n");
+    }
     b
 }
 

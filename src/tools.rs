@@ -138,6 +138,11 @@ pub fn agent_tools() -> Vec<ToolDef> {
             description: "End the current call.",
             input_schema: obj(json!({}), &[]),
         },
+        ToolDef {
+            name: "call_me",
+            description: "Call the account owner (manager) back on their own phone and connect them to you (the agent). Use ONLY when the manager asks you to call them — e.g. they text \"call me back\". Takes no arguments: it always dials the owner's verified number on file and can dial no one else. Works over text (SMS) or on a live call. After invoking it, tell them you're calling now.",
+            input_schema: obj(json!({}), &[]),
+        },
     ]
 }
 
@@ -157,12 +162,15 @@ mod tests {
     #[test]
     fn tool_set_shape() {
         let all = agent_tools();
-        assert_eq!(all.len(), 17);
+        assert_eq!(all.len(), 18);
         // names unique
         let mut names: Vec<&str> = all.iter().map(|t| t.name).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 17);
+        assert_eq!(names.len(), 18);
+        // call_me exists and takes no args (dials only the owner's own number).
+        let cm = all.iter().find(|t| t.name == "call_me").unwrap();
+        assert_eq!(cm.to_anthropic()["input_schema"]["required"], json!([]));
         // anthropic shape
         let sms = all.iter().find(|t| t.name == "send_sms").unwrap();
         let v = sms.to_anthropic();
