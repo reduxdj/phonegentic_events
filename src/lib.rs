@@ -16,10 +16,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Current schema version string carried in every server event envelope.
+pub mod agent_guidance;
 pub mod calendar;
 pub mod messaging;
 pub mod persona;
 pub mod tools;
+
+pub use agent_guidance::{
+    render_agent_guidance, AGENT_STATE_MAX_AGE_SECS, AGENT_STATE_MAX_BYTES, AGENT_STATE_MAX_TURNS,
+};
 
 pub const SCHEMA_VERSION: &str = "1.0";
 
@@ -189,6 +194,18 @@ pub enum ClientCommand {
         request_id: String,
     },
 
+    /// Upsert the client's rolling working-context snapshot (recent turns +
+    /// open task/intent + scratch notes) so the SERVER agent can continue a
+    /// task if the device goes offline mid-work. Per-tenant LWW by `source_ts`.
+    /// `snapshot` is compact JSON; orchestrator enforces
+    /// [`AGENT_STATE_MAX_BYTES`]. See agent-parity-phase.md item 3.
+    #[serde(rename = "context.agent_state.upsert")]
+    ContextAgentStateUpsert {
+        snapshot: Value,
+        source_ts: i64,
+        request_id: String,
+    },
+
     Ping,
 }
 
@@ -337,6 +354,21 @@ mod tests {
             .unwrap(),
             json!({ "type": "context.purge_all", "require_confirm": true, "request_id": "r4" })
         );
+
+        let asu = ClientCommand::ContextAgentStateUpsert {
+            snapshot: json!({
+                "turns": [{"role": "user", "text": "Call Bob about the invoice"}],
+                "open_task": "Call Bob about invoice #44",
+                "scratch_notes": "follow up Tuesday"
+            }),
+            source_ts: 1_783_000_200,
+            request_id: "r5".into(),
+        };
+        let vasu = serde_json::to_value(&asu).unwrap();
+        assert_eq!(vasu["type"], "context.agent_state.upsert");
+        assert_eq!(vasu["source_ts"], 1_783_000_200);
+        assert_eq!(vasu["snapshot"]["open_task"], "Call Bob about invoice #44");
+        assert_eq!(serde_json::from_value::<ClientCommand>(vasu).unwrap(), asu);
     }
 
     #[test]
