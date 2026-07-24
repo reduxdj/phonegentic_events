@@ -1,0 +1,50 @@
+[
+  {
+    "input": "Call me at 1-800-221-1212 today.",
+    "speech": "Call me at one, eight hundred, two two one, one two one two today."
+  },
+  {
+    "input": "dial +15034472755",
+    "speech": "dial one, five oh three, four four seven, two seven five five"
+  },
+  {
+    "input": "I sent it to +1-415-533-1352.",
+    "speech": "I sent it to one, four one five, five three three, one three five two."
+  },
+  {
+    "input": "You're on flight UA278.",
+    "speech": "You're on flight U A two seven eight."
+  },
+  {
+    "input": "AA-100 departs soon",
+    "speech": "A A one hundred departs soon"
+  },
+  {
+    "input": "Order ORD-94821 is ready",
+    "speech": "Order O R D nine four eight, two one is ready"
+  },
+  {
+    "input": "code X7K2",
+    "speech": "code X seven K two"
+  },
+  {
+    "input": "your code is 4821",
+    "speech": "your code is four eight two one"
+  },
+  {
+    "input": "I have 25 messages.",
+    "speech": "I have 25 messages."
+  },
+  {
+    "input": "in 2025 we grew",
+    "speech": "in 2025 we grew"
+  },
+  {
+    "input": "press 1 for sales",
+    "speech": "press 1 for sales"
+  },
+  {
+    "input": "Confirmation AB12CD34",
+    "speech": "Confirmation A B one two C D three four"
+  }
+]

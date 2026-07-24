@@ -134,6 +134,24 @@ pub fn agent_tools() -> Vec<ToolDef> {
             input_schema: obj(json!({}), &[]),
         },
         ToolDef {
+            name: "parse_phone_number",
+            description: "Convert a spoken or formatted phone-number transcript into E.164. \
+Handles digit words (oh/zero…nine), eight hundred→800, double/triple, teens \
+(twelve→12), vanity letters (FLOWERS), and punctuation (1-800-221-1212). \
+Call this on Whisper/dictation fragments before dialing or texting when the \
+digits are ambiguous; read back `display` and confirm when `complete` is false.",
+            input_schema: obj(json!({
+                "spoken": {
+                    "type": "string",
+                    "description": "Raw transcript or formatted number, e.g. \"one eight hundred two two one twelve twelve\" or \"1-800-221-1212\""
+                },
+                "default_country_code": {
+                    "type": "string",
+                    "description": "Optional dialing prefix when the number has no country code (default \"1\")"
+                }
+            }), &["spoken"]),
+        },
+        ToolDef {
             name: "end_call",
             description: "End the current call.",
             input_schema: obj(json!({}), &[]),
@@ -162,12 +180,14 @@ mod tests {
     #[test]
     fn tool_set_shape() {
         let all = agent_tools();
-        assert_eq!(all.len(), 18);
+        assert_eq!(all.len(), 19);
         // names unique
         let mut names: Vec<&str> = all.iter().map(|t| t.name).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 18);
+        assert_eq!(names.len(), 19);
+        let pp = all.iter().find(|t| t.name == "parse_phone_number").unwrap();
+        assert_eq!(pp.to_anthropic()["input_schema"]["required"], json!(["spoken"]));
         // call_me exists and takes no args (dials only the owner's own number).
         let cm = all.iter().find(|t| t.name == "call_me").unwrap();
         assert_eq!(cm.to_anthropic()["input_schema"]["required"], json!([]));

@@ -1,0 +1,62 @@
+[
+  {
+    "input": "1-800-221-1212",
+    "default_cc": "1",
+    "e164": "+18002211212",
+    "complete": true
+  },
+  {
+    "input": "one eight hundred two two one one two one two",
+    "default_cc": "1",
+    "e164": "+18002211212",
+    "complete": true
+  },
+  {
+    "input": "one eight hundred two two one twelve twelve",
+    "default_cc": "1",
+    "e164": "+18002211212",
+    "complete": true
+  },
+  {
+    "input": "+1 (800) 221-1212",
+    "default_cc": "1",
+    "e164": "+18002211212",
+    "complete": true
+  },
+  {
+    "input": "area code triple five one two three four five six seven",
+    "default_cc": "1",
+    "e164": "+15551234567",
+    "complete": true
+  },
+  {
+    "input": "five five five double oh one two three",
+    "default_cc": "1",
+    "e164": "+155500123",
+    "complete": false
+  },
+  {
+    "input": "503-447-2755",
+    "default_cc": "1",
+    "e164": "+15034472755",
+    "complete": true
+  },
+  {
+    "input": "1-800-FLOWERS",
+    "default_cc": "1",
+    "e164": "+18003569377",
+    "complete": true
+  },
+  {
+    "input": "call 800-221-1212",
+    "default_cc": "1",
+    "e164": "+18002211212",
+    "complete": true
+  },
+  {
+    "input": "1-800-hundred",
+    "default_cc": "1",
+    "e164": "+180000",
+    "complete": false
+  }
+]
