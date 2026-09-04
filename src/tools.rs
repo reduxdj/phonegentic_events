@@ -157,6 +157,16 @@ digits are ambiguous; read back `display` and confirm when `complete` is false."
             input_schema: obj(json!({}), &[]),
         },
         ToolDef {
+            name: "google_search",
+            description: "Search the web and return the top results with title, URL and snippet. Runs on the account owner's own computer, in their logged-in browser session — so it can reach things a generic web search cannot. Requires their desktop app to be running; if it is not, this returns a message saying so, and you should tell the caller you can't look that up right now rather than guessing.",
+            input_schema: obj(json!({
+                "query": {
+                    "type": "string",
+                    "description": "The search query."
+                }
+            }), &["query"]),
+        },
+        ToolDef {
             name: "call_me",
             description: "Call the account owner (manager) back on their own phone and connect them to you (the agent). Use ONLY when the manager asks you to call them — e.g. they text \"call me back\". Takes no arguments: it always dials the owner's verified number on file and can dial no one else. Works over text (SMS) or on a live call. After invoking it, tell them you're calling now.",
             input_schema: obj(json!({}), &[]),
@@ -180,12 +190,12 @@ mod tests {
     #[test]
     fn tool_set_shape() {
         let all = agent_tools();
-        assert_eq!(all.len(), 19);
+        assert_eq!(all.len(), 20);
         // names unique
         let mut names: Vec<&str> = all.iter().map(|t| t.name).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 19);
+        assert_eq!(names.len(), 20);
         let pp = all.iter().find(|t| t.name == "parse_phone_number").unwrap();
         assert_eq!(pp.to_anthropic()["input_schema"]["required"], json!(["spoken"]));
         // call_me exists and takes no args (dials only the owner's own number).

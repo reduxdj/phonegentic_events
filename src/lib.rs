@@ -131,6 +131,20 @@ pub enum ServerControl {
     Ack { request_id: String },
     Error { request_id: Option<String>, code: String, message: String },
     Pong,
+
+    /// Sent to a PROVIDER device: run this and reply with `capability.result`.
+    /// A control frame (not a `ServerEvent`) precisely because control frames
+    /// are unsequenced and never replayed — see the note on `CapabilityRequest`.
+    #[serde(rename = "capability.invoke")]
+    CapabilityInvoke { request_id: String, capability: String, args: Value },
+
+    /// Sent to the REQUESTER: the provider's answer, or a failure the requester
+    /// should surface verbatim. Failure codes travel as `Error`:
+    /// `capability_unavailable` (no provider online),
+    /// `capability_timeout` (provider took too long),
+    /// `capability_failed` (provider ran it and it errored).
+    #[serde(rename = "capability.response")]
+    CapabilityResponse { request_id: String, ok: bool, content: String },
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +224,51 @@ pub enum ClientCommand {
         request_id: String,
     },
 
+    // --- Capability delegation (remote-web-search) -------------------------
+    // A device that cannot run something asks another of the SAME tenant's
+    // devices to run it. Built for `web_search`, which needs a real Chrome over
+    // CDP and therefore exists only on desktop — iOS and the droplet agent can
+    // only delegate. Kept generic so later desktop-only powers (read a file,
+    // search my mail) reuse one router rather than growing a message each.
+    //
+    // These are NOT durable. The orchestrator delivers them straight to the
+    // target device's socket, never through JetStream: a request from a 09:00
+    // call replayed onto a laptop reconnecting at 17:00 would run a stale query
+    // for nobody.
+    /// Ask another device of this tenant to run a capability.
+    #[serde(rename = "capability.request")]
+    CapabilityRequest {
+        /// "web_search" today. Free-form so a new capability needs no crate
+        /// change on the REQUESTER side — only the provider must understand it.
+        capability: String,
+        /// Capability-specific arguments. For web_search: `{"query": "..."}`.
+        args: Value,
+        request_id: String,
+    },
+
+    /// A provider returning the outcome. `request_id` echoes the invoke.
+    #[serde(rename = "capability.result")]
+    CapabilityResult {
+        request_id: String,
+        ok: bool,
+        /// Formatted, LLM-ready text on success; a human-readable reason on
+        /// failure. Deliberately opaque: the provider formats, the requester
+        /// hands it to the model unchanged, and no repo has to model a result
+        /// shape that will keep changing.
+        content: String,
+    },
+
+    /// Announce what this device can do. Sent once right after connect and
+    /// again whenever the set changes (user toggles the integration off).
+    #[serde(rename = "capability.announce")]
+    CapabilityAnnounce {
+        /// e.g. `["web_search"]`. Empty is legal — "provider of nothing".
+        capabilities: Vec<String>,
+        /// "macos" | "ios" | "linux". Diagnostics and provider tie-breaking.
+        platform: String,
+        request_id: String,
+    },
+
     Ping,
 }
 
@@ -275,6 +334,94 @@ mod tests {
         assert_eq!(serde_json::to_value(ServerControl::Ack { request_id: "r1".into() }).unwrap(),
                    json!({ "type": "ack", "request_id": "r1" }));
         assert_eq!(serde_json::to_value(ServerControl::Pong).unwrap(), json!({ "type": "pong" }));
+    }
+
+    /// Capability delegation: the wire shapes three repos must agree on
+    /// byte-for-byte (Rust orchestrator, Rust agent, hand-mirrored Dart client).
+    /// A rename here is a silent cross-repo break, so pin the JSON explicitly.
+    #[test]
+    fn capability_frames_are_stable_on_the_wire() {
+        let req = ClientCommand::CapabilityRequest {
+            capability: "web_search".into(),
+            args: json!({ "query": "weather in Portland" }),
+            request_id: "r1".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(&req).unwrap(),
+            json!({
+                "type": "capability.request",
+                "capability": "web_search",
+                "args": { "query": "weather in Portland" },
+                "request_id": "r1"
+            })
+        );
+        assert_eq!(serde_json::from_value::<ClientCommand>(serde_json::to_value(&req).unwrap()).unwrap(), req);
+
+        let res = ClientCommand::CapabilityResult {
+            request_id: "r1".into(),
+            ok: true,
+            content: "Google results for \"weather\": ...".into(),
+        };
+        assert_eq!(serde_json::to_value(&res).unwrap()["type"], "capability.result");
+        assert_eq!(serde_json::from_value::<ClientCommand>(serde_json::to_value(&res).unwrap()).unwrap(), res);
+
+        let ann = ClientCommand::CapabilityAnnounce {
+            capabilities: vec!["web_search".into()],
+            platform: "macos".into(),
+            request_id: "r2".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(&ann).unwrap(),
+            json!({
+                "type": "capability.announce",
+                "capabilities": ["web_search"],
+                "platform": "macos",
+                "request_id": "r2"
+            })
+        );
+        assert_eq!(serde_json::from_value::<ClientCommand>(serde_json::to_value(&ann).unwrap()).unwrap(), ann);
+
+        // An announce with NO capabilities is legal and must survive the round
+        // trip — it is how a device says "I turned the integration off".
+        let none = ClientCommand::CapabilityAnnounce {
+            capabilities: vec![],
+            platform: "ios".into(),
+            request_id: "r3".into(),
+        };
+        assert_eq!(serde_json::from_value::<ClientCommand>(serde_json::to_value(&none).unwrap()).unwrap(), none);
+
+        let inv = ServerControl::CapabilityInvoke {
+            request_id: "r1".into(),
+            capability: "web_search".into(),
+            args: json!({ "query": "q" }),
+        };
+        assert_eq!(
+            serde_json::to_value(&inv).unwrap(),
+            json!({
+                "type": "capability.invoke",
+                "request_id": "r1",
+                "capability": "web_search",
+                "args": { "query": "q" }
+            })
+        );
+
+        let resp = ServerControl::CapabilityResponse {
+            request_id: "r1".into(),
+            ok: false,
+            content: "Web search isn't available right now.".into(),
+        };
+        assert_eq!(serde_json::to_value(&resp).unwrap()["type"], "capability.response");
+    }
+
+    /// google_search must be in the shared catalogue or the server agent cannot
+    /// advertise it (tool_defs() resolves names through `tools_for`).
+    #[test]
+    fn google_search_is_catalogued() {
+        let defs = crate::tools::tools_for(&["google_search".to_string()]);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "google_search");
+        let a = defs[0].to_anthropic();
+        assert_eq!(a["input_schema"]["required"], json!(["query"]));
     }
 
     #[test]
