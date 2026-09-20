@@ -33,11 +33,19 @@ pub use speech_numbers::format_numbers_for_speech;
 pub const SCHEMA_VERSION: &str = "1.0";
 
 /// Who produced a transcript segment.
+///
+/// `Human` is the phone owner speaking on a call a person answered — the far
+/// lane of the droplet's caller-leg transcription fork when no agent is in the
+/// room. It exists because that lane used to go out as `Agent` ("our side")
+/// and every client badged the owner's own words as "AI" (2026-09-18 and
+/// 2026-09-20 on agent-dev). Clients from 1.0.141 map `human` to "You";
+/// older clients fall back to `agent`, which is what they showed before.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
     Caller,
     Agent,
+    Human,
 }
 
 /// Live agent state for the `agent.state` event.
@@ -319,6 +327,20 @@ mod tests {
         );
         // round-trips
         assert_eq!(serde_json::from_value::<Envelope>(v).unwrap(), env);
+    }
+
+    #[test]
+    fn human_role_serialises_lowercase_and_round_trips() {
+        let ev = ServerEvent::CallTranscriptDelta {
+            call_id: "c1".into(),
+            role: Role::Human,
+            text: "hey amber".into(),
+            is_final: true,
+        };
+        let v = serde_json::to_value(&ev).unwrap();
+        assert_eq!(v["payload"]["role"], "human");
+        let back: ServerEvent = serde_json::from_value(v).unwrap();
+        assert!(matches!(back, ServerEvent::CallTranscriptDelta { role: Role::Human, .. }));
     }
 
     #[test]
