@@ -233,6 +233,10 @@ pub fn tool_guidance(tools_enabled: &[String]) -> String {
         b.push_str("\n## Scheduling\n");
         b.push_str("Confirm the date and time back to the caller before creating an event. Use read_calendar to check availability when asked.\n");
     }
+    if has("get_news") {
+        b.push_str("\n## News and current events\n");
+        b.push_str("If a caller asks what's in the news, about current events, or a topic that's in the news right now, call get_news (pass a topic like \"Ukraine\" or \"the markets\" to narrow it, or no topic for the top stories). Summarize a couple of headlines conversationally in your own words — don't read a long list verbatim. It's a fixed news feed for small talk, not a live web search or a source for weather, prices, or sports scores unless a story happens to cover them; for a real lookup use google_search instead. Never invent details beyond what it returns.\n");
+    }
     if has("call_me") {
         b.push_str("\n## Calling the owner back\n");
         b.push_str("call_me rings the account OWNER's own phone and connects them to you — use it only when the owner asks you to call them (e.g. they text \"call me\"). It dials only the owner's verified number, never anyone else, so never offer it to an outside caller. After calling it, tell them you're calling now.\n");

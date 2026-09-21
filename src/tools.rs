@@ -167,6 +167,16 @@ digits are ambiguous; read back `display` and confirm when `complete` is false."
             }), &["query"]),
         },
         ToolDef {
+            name: "get_news",
+            description: "Get current news headlines to talk about with the caller \u{2014} world events, politics, business, and the like, from a live news feed. Use it when someone asks what's going on in the news, about current events, or a topic in the news. Pass an optional `topic` (e.g. \"Ukraine\", \"markets\") to narrow it; with no topic you get the top headlines. Returns a short digest to read or paraphrase aloud, and for a topic it may include a few sentences of detail on the top story. This is a fixed news source, not a general web search \u{2014} for anything else use google_search.",
+            input_schema: obj(json!({
+                "topic": {
+                    "type": "string",
+                    "description": "Optional subject to narrow the news to, e.g. \"weather\", \"Ukraine\", \"the economy\". Omit for the top headlines."
+                }
+            }), &[]),
+        },
+        ToolDef {
             name: "call_me",
             description: "Call the account owner (manager) back on their own phone and connect them to you (the agent). Use ONLY when the manager asks you to call them — e.g. they text \"call me back\". Takes no arguments: it always dials the owner's verified number on file and can dial no one else. Works over text (SMS) or on a live call. After invoking it, tell them you're calling now.",
             input_schema: obj(json!({}), &[]),
@@ -190,12 +200,12 @@ mod tests {
     #[test]
     fn tool_set_shape() {
         let all = agent_tools();
-        assert_eq!(all.len(), 20);
+        assert_eq!(all.len(), 21);
         // names unique
         let mut names: Vec<&str> = all.iter().map(|t| t.name).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 20);
+        assert_eq!(names.len(), 21);
         let pp = all.iter().find(|t| t.name == "parse_phone_number").unwrap();
         assert_eq!(pp.to_anthropic()["input_schema"]["required"], json!(["spoken"]));
         // call_me exists and takes no args (dials only the owner's own number).
