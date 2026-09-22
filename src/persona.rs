@@ -187,8 +187,7 @@ pub fn render_system_prompt(p: &Persona) -> String {
         b.push_str("\n## Output Mode — Text\n");
         b.push_str("You are in TEXT-ONLY mode. Do NOT speak aloud; your responses are silent text for the operator's screen. Be concise and actionable.\n");
     } else {
-        b.push_str("\n## Output Mode — Voice\n");
-        b.push_str("Everything you write is spoken aloud by text-to-speech. Write the way people talk: natural phrasing, contractions, short clear sentences. No markdown, lists, URLs, or special characters — they sound unnatural read aloud.\n");
+        b.push_str(&voice_output_guidance());
     }
 
     // --- Persona lock ---
@@ -209,6 +208,17 @@ pub fn render_system_prompt(p: &Persona) -> String {
 /// that use a stored/custom `system_prompt` (the server agent does) can still
 /// append these — otherwise tool guidance would only reach personas that fall
 /// back to the rendered prompt. Returns "" when no relevant tools are enabled.
+/// The spoken-output rules. Also appended by the agent to a stored
+/// (orchestrator-rendered) prompt, which used to skip this block entirely —
+/// so tenants with a real persona got no "no markdown" rule and the model's
+/// **bold** reached TTS as "asterisk asterisk" (luisbaro, 2026-09-22).
+pub fn voice_output_guidance() -> String {
+    let mut b = String::new();
+    b.push_str("\n## Output Mode — Voice\n");
+    b.push_str("Everything you write is spoken aloud by text-to-speech. Write the way people talk: natural phrasing, contractions, short clear sentences. No markdown, no asterisks, no lists, no URLs, no special characters — they sound unnatural read aloud. Say dates and times as words a person would say: \"October sixth\", \"one in the afternoon\".\n");
+    b
+}
+
 pub fn tool_guidance(tools_enabled: &[String]) -> String {
     let has = |name: &str| tools_enabled.iter().any(|t| t == name);
     let mut b = String::new();

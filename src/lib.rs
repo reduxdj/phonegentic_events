@@ -21,6 +21,7 @@ pub mod calendar;
 pub mod messaging;
 pub mod persona;
 pub mod phone_number;
+pub mod speech;
 pub mod speech_numbers;
 pub mod tools;
 
@@ -28,6 +29,7 @@ pub use agent_guidance::{
     render_agent_guidance, AGENT_STATE_MAX_AGE_SECS, AGENT_STATE_MAX_BYTES, AGENT_STATE_MAX_TURNS,
 };
 pub use phone_number::{parse_spoken_phone, resolve_dialable, ParsedPhone};
+pub use speech::{normalize_text_for_speech, strip_markdown_for_speech};
 pub use speech_numbers::format_numbers_for_speech;
 
 pub const SCHEMA_VERSION: &str = "1.0";
